@@ -54,7 +54,7 @@ namespace {
     }
   )"};
 
-  constexpr auto fps(60);
+  constexpr auto tps(60);
 }
 
 int main() {
@@ -63,7 +63,6 @@ int main() {
   contextSettings.majorVersion = 3;
   contextSettings.minorVersion = 3;
   sf::RenderWindow wnd(sf::VideoMode(800, 800), "FEMWave", sf::Style::Titlebar | sf::Style::Close, contextSettings);
-  wnd.setFramerateLimit(fps);
   ImGui::SFML::Init(wnd);
   ImGui::GetIO().IniFilename = nullptr;
   if (!gladLoadGL())
@@ -76,7 +75,7 @@ int main() {
   sf::Shader glProg;
   sf::Texture x;
   glProg.loadFromMemory(srcVert, srcFrag);
-  Wave wave{128, 128, 1.f / fps, 16, 0};
+  Wave wave{128, 128, 1.f / tps, 16, 0};
   glProg.setUniform("nElems", sf::Glsl::Ivec2{wave.xElems, wave.yElems});
   glProg.setUniform("data", 0);
   float force{1024}, range{1}, sourceFreq{1}, sourcePhase{};
@@ -85,6 +84,7 @@ int main() {
   sf::CircleShape circle{8};
   circle.setOrigin(circle.getRadius(), circle.getRadius());
   std::vector<float> sound;
+  sf::Clock wallClock;
   while (true) {
     sf::Event ev;
     while (wnd.pollEvent(ev)) {
@@ -93,7 +93,7 @@ int main() {
         goto stop;
     }
     wave.clearForce();
-    ImGui::SFML::Update(wnd, sf::seconds(wave.timeStep));
+    ImGui::SFML::Update(wnd, wallClock.restart());
     ImGui::Begin("FEMWave");
     ImGui::SliderFloat("waveSpeed", &wave.waveSpeed, 0, 16);
     ImGui::SliderFloat("dampConst", &wave.dampConst, 0, 4, "%.3f", 4);
@@ -139,7 +139,7 @@ int main() {
         );
       }
     }
-    sourcePhase = std::fmod(sourcePhase + sourceFreq / fps, 1.f);
+    sourcePhase = std::fmod(sourcePhase + sourceFreq / tps, 1.f);
     float sourceWave{std::sin(2 * std::acos(-1.f) * sourcePhase)};
     for (auto &i : sources) {
       wave.addForce(
