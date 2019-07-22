@@ -64,6 +64,7 @@ int main() {
   sf::RenderWindow wnd(sf::VideoMode(800, 800), "FEMWave", sf::Style::Titlebar | sf::Style::Close, contextSettings);
   wnd.setFramerateLimit(fps);
   ImGui::SFML::Init(wnd);
+  ImGui::GetIO().IniFilename = nullptr;
   if (!gladLoadGL())
     return EXIT_FAILURE;
   GLuint glTex;
