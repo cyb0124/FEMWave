@@ -1,4 +1,5 @@
 #include <list>
+#include <fstream>
 #include <glad/glad.h>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
@@ -83,6 +84,7 @@ int main() {
   std::list<ImVec2> sources;
   sf::CircleShape circle{8};
   circle.setOrigin(circle.getRadius(), circle.getRadius());
+  std::vector<float> sound;
   while (true) {
     sf::Event ev;
     while (wnd.pollEvent(ev)) {
@@ -100,6 +102,18 @@ int main() {
     ImGui::SliderFloat("sourceFreq", &sourceFreq, 1.f / 8, 8, "%.3f", 2);
     ImGui::RadioButton("addForce", &mode, 0); ImGui::SameLine();
     ImGui::RadioButton("sources", &mode, 1);
+    sound.emplace_back(wave.u0(wave.idxNode(wave.xNodes() / 2, wave.yNodes() / 2)));
+    ImGui::Value("soundTime", sound.size() / 44100.f);
+    if (ImGui::Button("saveSound")) {
+      float max{};
+      for (float i : sound)
+        max = std::max(max, std::abs(i));
+      std::ofstream ofs("sound.dat", std::ios::out | std::ios::binary);
+      for (float i : sound) {
+        i /= max;
+        ofs.write(reinterpret_cast<char*>(&i), sizeof i);
+      }
+    }
     ImGui::End();
     if (!ImGui::GetIO().WantCaptureMouse) {
       if (mode) {
