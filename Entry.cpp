@@ -1,4 +1,5 @@
 #include <list>
+#include <queue>
 #include <fstream>
 #include <glad/glad.h>
 #include <SFML/Graphics.hpp>
@@ -54,6 +55,12 @@ namespace {
     }
   )"};
 
+  struct Source {
+    ImVec2 pos;
+    float wave;
+    Source(const ImVec2 &pos) :pos(pos) {}
+  };
+
   constexpr auto tps(60);
 }
 
@@ -80,10 +87,11 @@ int main() {
   glProg.setUniform("data", 0);
   float force{1024}, range{1}, sourceFreq{1}, sourcePhase{};
   int mode{};
-  std::list<ImVec2> sources;
+  std::list<Source> sources;
   sf::CircleShape circle{8};
   circle.setOrigin(circle.getRadius(), circle.getRadius());
-  std::vector<float> sound;
+  std::vector<std::pair<float, float>> soundOut;
+  std::queue<std::pair<float, float>> soundIn;
   sf::Clock wallClock;
   while (true) {
     sf::Event ev;
@@ -102,16 +110,26 @@ int main() {
     ImGui::SliderFloat("sourceFreq", &sourceFreq, 1.f / 8, 8, "%.3f", 2);
     ImGui::RadioButton("addForce", &mode, 0); ImGui::SameLine();
     ImGui::RadioButton("sources", &mode, 1);
-    sound.emplace_back(wave.u0(wave.idxNode(wave.xNodes() / 2, wave.yNodes() / 2)));
-    ImGui::Value("soundTime", sound.size() / 44100.f);
+    soundOut.emplace_back(
+      wave.u0(wave.idxNode(wave.xNodes() / 3 * 1, wave.yNodes() / 2)),
+      wave.u0(wave.idxNode(wave.xNodes() / 3 * 2, wave.yNodes() / 2))
+    );
+    ImGui::Value("soundTime", soundOut.size() / 44100.f);
+    if (ImGui::Button("loadSound")) {
+      std::ifstream ifs{"input.dat", std::ios::in | std::ios::binary};
+      float data[2];
+      while (ifs.read(reinterpret_cast<char*>(data), sizeof data))
+        soundIn.emplace(data[0], data[1]);
+    }
+    ImGui::SameLine();
     if (ImGui::Button("saveSound")) {
       float max{};
-      for (float i : sound)
-        max = std::max(max, std::abs(i));
-      std::ofstream ofs("sound.dat", std::ios::out | std::ios::binary);
-      for (float i : sound) {
-        i /= max;
-        ofs.write(reinterpret_cast<char*>(&i), sizeof i);
+      for (auto &i : soundOut)
+        max = std::max({max, std::abs(i.first), std::abs(i.second)});
+      std::ofstream ofs{"sound.dat", std::ios::out | std::ios::binary};
+      for (auto &i : soundOut) {
+        float data[2] { i.first / max, i.second / max };
+        ofs.write(reinterpret_cast<char*>(data), sizeof data);
       }
     }
     ImGui::End();
@@ -120,7 +138,7 @@ int main() {
         if (ImGui::IsMouseClicked(0)) {
           auto selectedSrc{sources.end()};
           for (auto i{sources.begin()}; i != sources.end(); ++i) {
-            if (std::hypot(ImGui::GetMousePos().x - i->x, ImGui::GetMousePos().y - i->y) < circle.getRadius()) {
+            if (std::hypot(ImGui::GetMousePos().x - i->pos.x, ImGui::GetMousePos().y - i->pos.y) < circle.getRadius()) {
               selectedSrc = i;
               break;
             }
@@ -139,13 +157,26 @@ int main() {
         );
       }
     }
-    sourcePhase = std::fmod(sourcePhase + sourceFreq / tps, 1.f);
-    float sourceWave{std::sin(2 * std::acos(-1.f) * sourcePhase)};
+    if (soundIn.empty()) {
+      sourcePhase = std::fmod(sourcePhase + sourceFreq / tps, 1.f);
+      float wave{std::sin(2 * std::acos(-1.f) * sourcePhase)};
+      for (auto &i : sources)
+        i.wave = wave;
+    } else {
+      sourcePhase = 0;
+      if (sources.size() == 2) {
+        std::tie(sources.front().wave, sources.back().wave) = soundIn.front();
+        soundIn.pop();
+      } else {
+        for (auto &i : sources)
+          i.wave = 0;
+      }
+    }
     for (auto &i : sources) {
       wave.addForce(
-        i.x * wave.xElems / wnd.getSize().x,
-        i.y * wave.yElems / wnd.getSize().y,
-        sourceWave * force, range
+        i.pos.x * wave.xElems / wnd.getSize().x,
+        i.pos.y * wave.yElems / wnd.getSize().y,
+        i.wave * force, range
       );
     }
     wave.simulate();
@@ -155,11 +186,11 @@ int main() {
     glDrawArrays(GL_TRIANGLES, 0, wave.xElems * wave.yElems * 6);
     glBindTexture(GL_TEXTURE_2D, 0);
     sf::Shader::bind(nullptr);
-    circle.setFillColor(sourceWave > 0
-      ? sf::Color{0, static_cast<uint8_t>(sourceWave * 255), 0}
-      : sf::Color{static_cast<uint8_t>(sourceWave * -255), 0, 0});
     for (auto &i : sources) {
-      circle.setPosition(i.x, i.y);
+      circle.setPosition(i.pos.x, i.pos.y);
+      circle.setFillColor(i.wave > 0
+        ? sf::Color{0, static_cast<uint8_t>(i.wave * 255), 0}
+        : sf::Color{static_cast<uint8_t>(i.wave * -255), 0, 0});
       wnd.draw(circle);
     }
     ImGui::SFML::Render(wnd);
