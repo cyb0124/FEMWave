@@ -82,7 +82,7 @@ int main() {
   sf::Shader glProg;
   sf::Texture x;
   glProg.loadFromMemory(srcVert, srcFrag);
-  Wave wave{128, 128, 1.f / tps, 16, 0};
+  Wave wave{128, 128, 1.f / tps, 16, 0.1f};
   glProg.setUniform("nElems", sf::Glsl::Ivec2{wave.xElems, wave.yElems});
   glProg.setUniform("data", 0);
   float force{1024}, range{1}, sourceFreq{1}, sourcePhase{};
@@ -104,7 +104,7 @@ int main() {
     ImGui::SFML::Update(wnd, wallClock.restart());
     ImGui::Begin("FEMWave");
     ImGui::SliderFloat("waveSpeed", &wave.waveSpeed, 0, 16);
-    ImGui::SliderFloat("dampConst", &wave.dampConst, 0.1f, 4, "%.3f", 4);
+    ImGui::SliderFloat("dampConst", &wave.dampConst, 0, 4, "%.3f", 4);
     ImGui::SliderFloat("force", &force, 1, 1024, "%.3f", 4);
     ImGui::SliderFloat("range", &range, 1, 16, "%.3f", 2);
     ImGui::SliderFloat("sourceFreq", &sourceFreq, 1.f / 8, 8, "%.3f", 2);
