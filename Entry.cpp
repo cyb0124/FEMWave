@@ -61,7 +61,7 @@ namespace {
     Source(const ImVec2 &pos) :pos(pos) {}
   };
 
-  constexpr auto tps(60);
+  constexpr auto tps(60), sr(44100);
 }
 
 int main() {
@@ -104,7 +104,7 @@ int main() {
     ImGui::SFML::Update(wnd, wallClock.restart());
     ImGui::Begin("FEMWave");
     ImGui::SliderFloat("waveSpeed", &wave.waveSpeed, 0, 16);
-    ImGui::SliderFloat("dampConst", &wave.dampConst, 0, 4, "%.3f", 4);
+    ImGui::SliderFloat("dampConst", &wave.dampConst, 0.1f, 4, "%.3f", 4);
     ImGui::SliderFloat("force", &force, 1, 1024, "%.3f", 4);
     ImGui::SliderFloat("range", &range, 1, 16, "%.3f", 2);
     ImGui::SliderFloat("sourceFreq", &sourceFreq, 1.f / 8, 8, "%.3f", 2);
@@ -114,7 +114,8 @@ int main() {
       wave.u0(wave.idxNode(wave.xNodes() / 3 * 1, wave.yNodes() / 2)),
       wave.u0(wave.idxNode(wave.xNodes() / 3 * 2, wave.yNodes() / 2))
     );
-    ImGui::Value("soundTime", soundOut.size() / 44100.f);
+    ImGui::Value("soundTime", soundOut.size() / static_cast<float>(sr));
+    ImGui::Value("inAvail", soundIn.size() / static_cast<float>(sr));
     if (ImGui::Button("loadSound")) {
       std::ifstream ifs{"input.dat", std::ios::in | std::ios::binary};
       float data[2];
