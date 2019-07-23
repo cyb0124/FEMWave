@@ -82,7 +82,7 @@ int main() {
   sf::Shader glProg;
   sf::Texture x;
   glProg.loadFromMemory(srcVert, srcFrag);
-  Wave wave{128, 128, 1.f / tps, 16, 0.1f};
+  Wave wave{128, 128, 1.f / tps, 16, 0.01f};
   glProg.setUniform("nElems", sf::Glsl::Ivec2{wave.xElems, wave.yElems});
   glProg.setUniform("data", 0);
   float force{1024}, range{1}, sourceFreq{1}, sourcePhase{};
@@ -90,6 +90,8 @@ int main() {
   std::list<Source> sources;
   sf::CircleShape circle{8};
   circle.setOrigin(circle.getRadius(), circle.getRadius());
+  circle.setOutlineThickness(1);
+  circle.setOutlineColor(sf::Color::White);
   std::vector<std::pair<float, float>> soundOut;
   std::queue<std::pair<float, float>> soundIn;
   sf::Clock wallClock;
